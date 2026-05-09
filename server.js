@@ -2,6 +2,12 @@ const dotenv = require('dotenv').config();
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
+const errorHandler = require("./middleWare/errorMiddleware");
+const cookieParser = require("cookie-parser");
+const path = require("path");
+const cloudinary = require("cloudinary").v2;
+const passport = require('passport');
+const session = require('express-session');
 const userRoute = require("./routes/userRoute");
 const productsRoute = require("./routes/productsRoute");
 const paymentRoute = require("./routes/paymentRoute");
@@ -10,15 +16,12 @@ const cartRoute = require("./routes/cartRoute");
 const couponRoute = require("./routes/couponRoute");
 const contactRoute = require("./routes/contactRoute");
 const orderRoute = require("./routes/orderRoute");
-const errorHandler = require("./middleWare/errorMiddleware");
-const cookieParser = require("cookie-parser");
-const path = require("path");
-const cloudinary = require("cloudinary").v2;
-const cors = require('cors');
+
 
 const app = express();
 const PORT = process.env.PORT || 8081;
-const mongoUri = process.env.MONGODB_URI || process.env.DATABASE;
+const mongoUri = process.env.DATABASE;
+
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -26,23 +29,41 @@ const allowedOrigins = [
   "https://buysell-market.vercel.app",
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (
-      allowedOrigins.includes(origin) ||
-      origin.endsWith('.vercel.app') ||
-      origin.endsWith('.onrender.com')
-    ) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-}));
+const isAllowedOrigin = (origin) => {
+  if (!origin) {
+    return false;
+  }
+
+  return allowedOrigins.includes(origin) || origin.endsWith(".vercel.app");
+};
+
+const applyCorsHeaders = (req, res) => {
+  const requestOrigin = req.headers.origin;
+
+  if (requestOrigin && isAllowedOrigin(requestOrigin)) {
+    res.setHeader("Access-Control-Allow-Origin", requestOrigin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, PUT, OPTIONS");
+  }
+};
+
+// Middlewares
+app.use((req, res, next) => {
+  applyCorsHeaders(req, res);
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  return next();
+});
 
 app.use(cookieParser());
+app.use(session({ secret: process.env.JWT_SECRET, resave: false, saveUninitialized: true }));
+app.use(passport.initialize());
+app.use(passport.session());
 app.use(express.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
@@ -59,8 +80,11 @@ app.use("/api/orders", orderRoute);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use("/api", (req, res) => {
+  applyCorsHeaders(req, res);
   return res.status(404).json({ message: "API route not found" });
 });
+
+
 
 cloudinary.config({
   cloud_name : process.env.CLOUD_NAME,//process.env.CLOUDINARY_NAME
@@ -68,11 +92,15 @@ cloudinary.config({
   api_secret : process.env.CLOUD_API_SECRET,//process.env.CLOUDINARY_API_SECRET
 });
 
+
+
 // Routes
 app.get("*", (req, res) => {
+  applyCorsHeaders(req, res);
+  // Add Content Security Policy header
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://www.google.com;");
   res.send("Home Page");
 });
-app.get("/favicon.ico", (req, res) => res.status(204));
 
 // Error Middleware
 app.use(errorHandler);

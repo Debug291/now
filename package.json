@@ -24,6 +24,7 @@
     "dotenv": "^16.0.2",
     "express": "^4.19.2",
     "express-async-handler": "^1.2.0",
+    "express-session": "^1.19.0",
     "google-auth-library": "^9.0.0",
     "googleapis": "^137.1.0",
     "http-proxy-middleware": "^3.0.0",
@@ -35,6 +36,7 @@
     "nodemailer": "^6.7.8",
     "nodemailer-express-handlebars": "^6.1.0",
     "nodemon": "^3.0.1",
+    "passport": "^0.7.0",
     "toastify-react": "^4.3.1",
     "ua-parser-js": "^1.0.35",
     "validator": "^13.11.0"
